@@ -1,0 +1,16 @@
+[package]
+name = "advancedresearch-utility_programming"
+version = "0.1.0"
+authors = ["Sven Nilsen <bvssvni@gmail.com>"]
+keywords = ["ai", "utility", "programming", "optimization", "advancedresearch"]
+description = "A library for composable utility programming."
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/advancedresearch/utility_programming.git"
+homepage = "https://github.com/advancedresearch/utility_programming"
+
+[lib]
+name = "utility_programming"
+
+[dependencies]
+rand = "0.5.0"
