@@ -1,6 +1,6 @@
 [package]
 name = "advancedresearch-utility_programming"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Sven Nilsen <bvssvni@gmail.com>"]
 keywords = ["ai", "utility", "programming", "optimization", "advancedresearch"]
 description = "A library for composable utility programming."

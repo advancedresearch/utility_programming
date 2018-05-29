@@ -117,11 +117,11 @@ pub trait Modifier<T> {
     /// Undo change made to an object.
     ///
     /// Required to be deterministic.
-    fn undo(&self, change: &Self::Change, obj: &mut T);
+    fn undo(&mut self, change: &Self::Change, obj: &mut T);
     /// Redo change made to an object.
     ///
     /// Required to be deterministic.
-    fn redo(&self, change: &Self::Change, obj: &mut T);
+    fn redo(&mut self, change: &Self::Change, obj: &mut T);
 }
 
 impl<T, U: Modifier<T>> Modifier<T> for Vec<U> {
@@ -130,10 +130,10 @@ impl<T, U: Modifier<T>> Modifier<T> for Vec<U> {
         let index = rand::random::<usize>() % self.len();
         (index, self[index].modify(obj))
     }
-    fn undo(&self, change: &Self::Change, obj: &mut T) {
+    fn undo(&mut self, change: &Self::Change, obj: &mut T) {
         self[change.0].undo(&change.1, obj)
     }
-    fn redo(&self, change: &Self::Change, obj: &mut T) {
+    fn redo(&mut self, change: &Self::Change, obj: &mut T) {
         self[change.0].redo(&change.1, obj)
     }
 }
@@ -176,12 +176,12 @@ impl<T, M, U> Modifier<T> for ModifyOptimizer<M, U>
         }
         best
     }
-    fn undo(&self, change: &Self::Change, obj: &mut T) {
+    fn undo(&mut self, change: &Self::Change, obj: &mut T) {
         for i in (0..change.len()).rev() {
             self.modifier.undo(&change[i], obj);
         }
     }
-    fn redo(&self, change: &Self::Change, obj: &mut T) {
+    fn redo(&mut self, change: &Self::Change, obj: &mut T) {
         for i in 0..change.len() {
             self.modifier.redo(&change[i], obj);
         }
