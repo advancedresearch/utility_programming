@@ -107,12 +107,31 @@ impl<T: Generator> Generator for Vec<T> {
 }
 
 /// Modifies objects in a way that can be reversed.
+///
+/// ### Change in meaning of modifier
+///
+/// When there are multiple modifiers in the same context,
+/// such as a list of modifiers, then one modification might
+/// change the meaning of another.
+///
+/// For example, when an item is insert into a list:
+///
+/// - `[0, 3]`, inserting at `1` changes to `[0, 4]` (range includes index)
+/// - `[2, 4]`, inserting at `0` changes to `[3, 5]` (range is after index)
+/// - `[0, 3]`, inserting at `3` changes to `[0, 3]` (the same)
+///
+/// Meaning of a modifier is information that refers to information in the object.
+/// When the object changes, the consistency of the reference might require updating the modifier.
+///
+/// This is what the methods `undo_meaning` and `redo_meaning` do.
+/// They preserve meaning even though the change originated from another modifier.
 pub trait Modifier<T> {
     /// The change applied to an object.
     type Change;
     /// Modify an object and return the change.
     ///
     /// This might be indeterministic.
+    /// Use `redo_meaning` for applying change in meaning of modifier.
     fn modify(&mut self, obj: &mut T) -> Self::Change;
     /// Undo change made to an object.
     ///
@@ -122,6 +141,14 @@ pub trait Modifier<T> {
     ///
     /// Required to be deterministic.
     fn redo(&mut self, change: &Self::Change, obj: &mut T);
+    /// Undo meaning change in the modifier introduced by a change.
+    ///
+    /// This is called after undoing change by any modifier used in same context.
+    fn undo_meaning(&mut self, _change: &Self::Change) {}
+    /// Redo meaning change in the modifier.
+    ///
+    /// This is called after modification by any modifier used in same context.
+    fn redo_meaning(&mut self, _change: &Self::Change) {}
 }
 
 impl<T, U: Modifier<T>> Modifier<T> for Vec<U> {
@@ -135,6 +162,12 @@ impl<T, U: Modifier<T>> Modifier<T> for Vec<U> {
     }
     fn redo(&mut self, change: &Self::Change, obj: &mut T) {
         self[change.0].redo(&change.1, obj)
+    }
+    fn undo_meaning(&mut self, change: &Self::Change) {
+        for it in self {it.undo_meaning(&change.1)}
+    }
+    fn redo_meaning(&mut self, change: &Self::Change) {
+        for it in self {it.undo_meaning(&change.1)}
     }
 }
 
@@ -160,7 +193,9 @@ impl<T, M, U> Modifier<T> for ModifyOptimizer<M, U>
         let mut stack = vec![];
         for _ in 0..self.tries {
             for _ in 0..self.depth {
-                stack.push(self.modifier.modify(obj));
+                let change = self.modifier.modify(obj);
+                self.modifier.redo_meaning(&change);
+                stack.push(change);
                 let utility = self.utility.utility(obj);
                 if best_utility < utility {
                     best = stack.clone();
@@ -169,21 +204,25 @@ impl<T, M, U> Modifier<T> for ModifyOptimizer<M, U>
             }
             while let Some(ref action) = stack.pop() {
                 self.modifier.undo(action, obj);
+                self.modifier.undo_meaning(&action);
             }
         }
         for i in 0..best.len() {
             self.modifier.redo(&best[i], obj);
+            self.modifier.redo_meaning(&best[i]);
         }
         best
     }
     fn undo(&mut self, change: &Self::Change, obj: &mut T) {
         for i in (0..change.len()).rev() {
             self.modifier.undo(&change[i], obj);
+            self.modifier.undo_meaning(&change[i]);
         }
     }
     fn redo(&mut self, change: &Self::Change, obj: &mut T) {
         for i in 0..change.len() {
             self.modifier.redo(&change[i], obj);
+            self.modifier.redo_meaning(&change[i]);
         }
     }
 }
